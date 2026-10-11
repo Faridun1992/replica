@@ -21,28 +21,28 @@ php-local:
         echo "❌ Разрешено только для local (сейчас: $(APP_ENV))"; \
         exit 1; \
     fi
-	docker compose exec php bash
+	docker compose exec php_replica bash
 
 dev-local:
 	@if [ "$(APP_ENV)" != "local" ]; then \
         echo "❌ Разрешено только для local (сейчас: $(APP_ENV))"; \
         exit 1; \
     fi
-	docker compose exec node npm run dev
+	docker compose exec node_replica npm run dev -- --host 0.0.0.0
 
 build-local:
 	@if [ "$(APP_ENV)" != "local" ]; then \
         echo "❌ Разрешено только для local (сейчас: $(APP_ENV))"; \
         exit 1; \
     fi
-	docker compose exec node npm run build
+	docker compose exec node_replica npm run build
 
 install-local:
 	@if [ "$(APP_ENV)" != "local" ]; then \
         echo "❌ Разрешено только для local (сейчас: $(APP_ENV))"; \
         exit 1; \
     fi
-	docker compose exec node npm install
+	docker compose exec node_replica npm install
 
 up-stage:
 	@if [ "$(APP_ENV)" != "staging" ]; then \

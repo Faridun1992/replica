@@ -5,7 +5,7 @@
 ## Стек
 
 - PHP `^8.5`, Laravel `^13.0`
-- MySQL 8.4 и Redis 7.4
+- MySQL 8.4 (primary для записи и read-only replica для чтения) и Redis 7.4
 - Node.js 22, Vite 8, Sass, Bootstrap 5
 - Laravel Horizon и очереди Redis
 - PHPUnit 12
@@ -44,7 +44,7 @@ make install-local
 make dev-local
 ```
 
-Приложение доступно через Nginx на `http://localhost`. Compose публикует порт `3000` для node-контейнера; Vite по умолчанию использует `5173`, поэтому для HMR в Docker согласуйте порт и host в настройках Vite и Compose. Чтобы собрать ассеты для production, выполните `make build-local`. Остановить локальные контейнеры можно командой `make down-local`.
+Приложение доступно через Nginx на `http://localhost:8081` (HTTPS — порт `8444`). Compose публикует Vite на `5173`; команда `make dev-local` запускает его с доступом из Docker-сети. MySQL primary доступен с хоста на порту `3307`, read replica — `3308`; приложение внутри Docker читает с replica и пишет в primary. При первом старте setup-сервис копирует базы из `.env` (`DB_DATABASE` и `testing`) в reader, затем включает GTID-репликацию и режим только для чтения. Репликация асинхронная, поэтому сразу после записи возможна небольшая задержка перед чтением с replica. Порты можно переопределить переменными `NGINX_REPLICA_HTTP_PORT`, `NGINX_REPLICA_HTTPS_PORT`, `VITE_REPLICA_HOST_PORT`, `DB_WRITER_HOST_PORT`, `DB_READER_HOST_PORT` и `REDIS_REPLICA_HOST_PORT`. Чтобы собрать ассеты для production, выполните `make build-local`. Остановить локальные контейнеры можно командой `make down-local`.
 
 В `.env.example` задан `APP_URL=http://project-x.loc`. Если браузер или HMR используют это имя, добавьте `127.0.0.1 project-x.loc` в hosts либо настройте `APP_URL` под своё окружение.
 

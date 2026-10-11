@@ -1,5 +1,7 @@
+name: starter-kit
+
 services:
-    nginx:
+    nginx_replica:
         build:
             context: ./docker/nginx/local
             dockerfile: Dockerfile
@@ -8,11 +10,11 @@ services:
             - ./docker/nginx/local/conf.d:/etc/nginx/conf.d
             - ./docker/nginx/stage/nginx.conf:/etc/nginx/nginx.conf
         ports:
-            - "80:80"
-            - "443:443"
+            - "${NGINX_REPLICA_HTTP_PORT:-8081}:80"
+            - "${NGINX_REPLICA_HTTPS_PORT:-8444}:443"
         depends_on:
-            - php
-            - node
+            - php_replica
+            - node_replica
         healthcheck:
             test: ["CMD-SHELL", "service nginx status || exit 1"]
             interval: 30s
@@ -23,7 +25,7 @@ services:
         networks:
             - app-network
 
-    php:
+    php_replica:
         environment:
             TZ: ASIA/Dushanbe
         build:
@@ -36,9 +38,13 @@ services:
         volumes:
             - ./:/var/www
         depends_on:
-            mysql:
+            mysql_writer:
                 condition: service_healthy
-            redis:
+            mysql_reader:
+                condition: service_healthy
+            mysql_replication_setup:
+                condition: service_completed_successfully
+            redis_replica:
                 condition: service_started
         healthcheck:
             test: ["CMD-SHELL", "php-fpm -t || exit 1"]
@@ -50,19 +56,21 @@ services:
         networks:
             - app-network
 
-    mysql:
+    mysql_writer:
         image: mysql:8.4.8
         volumes:
             - database:/var/lib/mysql
             - ./docker/mysql/create-database.sql:/docker-entrypoint-initdb.d/create-database.sql
-            - ./docker/mysql/stage:/etc/mysql/conf.d
+            - ./docker/mysql/replication/writer.cnf:/etc/mysql/conf.d/zz-writer.cnf:ro
         environment:
             - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+            - MYSQL_REPLICATION_PASSWORD=${MYSQL_REPLICATION_PASSWORD:?Set MYSQL_REPLICATION_PASSWORD in .env}
+            - MYSQL_ROOT_HOST=%
             - MYSQL_USER=${DB_USERNAME}
             - MYSQL_PASSWORD=${DB_PASSWORD}
             - MYSQL_DATABASE=${DB_DATABASE}
         ports:
-            - ${DB_PORT}:${DB_PORT}
+            - "${DB_WRITER_HOST_PORT:-3307}:3306"
         healthcheck:
             test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
             interval: 10s
@@ -71,12 +79,57 @@ services:
             start_period: 30s
         restart: unless-stopped
         networks:
+            app-network:
+                aliases:
+                    - mysql
+                    - mysql_writer
+
+    mysql_reader:
+        image: mysql:8.4.8
+        volumes:
+            - database_reader:/var/lib/mysql
+            - ./docker/mysql/replication/reader.cnf:/etc/mysql/conf.d/zz-reader.cnf:ro
+        environment:
+            - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+            - MYSQL_ROOT_HOST=%
+        ports:
+            - "${DB_READER_HOST_PORT:-3308}:3306"
+        depends_on:
+            mysql_writer:
+                condition: service_healthy
+        healthcheck:
+            test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 30s
+        restart: unless-stopped
+        networks:
+            app-network:
+                aliases:
+                    - mysql_reader
+
+    mysql_replication_setup:
+        image: mysql:8.4.8
+        entrypoint: ["/bin/bash", "/replication/setup-replication.sh"]
+        volumes:
+            - ./docker/mysql/replication/setup-replication.sh:/replication/setup-replication.sh:ro
+        environment:
+            - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+            - MYSQL_DATABASE=${DB_DATABASE}
+        depends_on:
+            mysql_writer:
+                condition: service_healthy
+            mysql_reader:
+                condition: service_healthy
+        restart: "no"
+        networks:
             - app-network
 
-    node:
+    node_replica:
         image: node:22-alpine
         ports:
-            - "3000:3000"
+            - "${VITE_REPLICA_HOST_PORT:-5173}:5173"
         volumes:
             - ./:/var/www
         working_dir: /var/www
@@ -85,12 +138,12 @@ services:
         networks:
             - app-network
 
-    redis:
+    redis_replica:
         image: redis:7.4.2
         volumes:
             - redis:/data
         ports:
-            - ${REDIS_PORT}:${REDIS_PORT}
+            - "${REDIS_REPLICA_HOST_PORT:-6380}:6379"
         command: [
             "redis-server",
             "--requirepass", "${REDIS_PASSWORD}",
@@ -108,10 +161,13 @@ services:
             start_period: 10s
         restart: unless-stopped
         networks:
-            - app-network
+            app-network:
+                aliases:
+                    - redis
 
 volumes:
     database:
+    database_reader:
     redis:
 networks:
     app-network:
