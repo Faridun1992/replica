@@ -1,4 +1,4 @@
-name: starter-kit
+name: replica
 
 services:
     nginx_replica:
@@ -116,6 +116,7 @@ services:
             - ./docker/mysql/replication/setup-replication.sh:/replication/setup-replication.sh:ro
         environment:
             - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+            - MYSQL_REPLICATION_PASSWORD=${MYSQL_REPLICATION_PASSWORD:?Set MYSQL_REPLICATION_PASSWORD in .env}
             - MYSQL_DATABASE=${DB_DATABASE}
         depends_on:
             mysql_writer:
