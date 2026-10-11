@@ -1,166 +1,119 @@
-# Проект X (Laravel 13)
+# Starter Kit
 
-Веб‑приложение на Laravel с фронтендом на Vite. Стек включает MySQL, Redis, ClickHouse и Manticore Search, а также Docker Compose для локальной и stage‑среды. Этот README описывает процессы установки, разработки, тестирования и деплоя для данного репозитория.
+Веб-приложение на Laravel 13 с PHP 8.5 и Vite. Локальная инфраструктура запускается через Docker Compose; для фронтенда используются Sass и Bootstrap.
 
-Последнее обновление: 2026-04-05
+## Стек
 
-## Обзор
-- Бэкенд: PHP 8.4, Laravel 13
-- Фронтенд: Vite 5, ES Modules, SCSS; Bootstrap 5
-- Поиск/индексация: Laravel Scout + Manticore
-- Хранилище данных: MySQL 8.4, Redis
-- Аналитика/OLAP: ClickHouse
-- Файловое хранилище: Yandex Object Storage (S3-совместимое, через league/flysystem-aws-s3-v3)
-- Процессы/очереди: Supervisor + Laravel Horizon + очереди Redis
-- Инструменты разработки: Docker Compose, цели Makefile, PHPUnit
+- PHP `^8.5`, Laravel `^13.0`
+- MySQL 8.4 и Redis 7.4
+- Node.js 22, Vite 8, Sass, Bootstrap 5
+- Laravel Horizon и очереди Redis
+- PHPUnit 12
 
-Значимые пакеты (бэкенд):
-- jeroennoten/laravel-adminlte (UI AdminLTE)
-- spatie/laravel-permission (роли/разрешения)
-- opcodesio/log-viewer (просмотр логов)
-- romanstruk/manticore-scout-engine (драйвер Scout)
-- glushkovds/phpclickhouse-laravel (клиент ClickHouse)
-- laravel/horizon (мониторинг очередей)
-- laravel/ui, laravel/scout, predis/predis
-- web-token/jwt-framework (JWT)
-- pulkitjalan/ip-geolocation (геолокация по IP)
-
-Значимые пакеты (фронтенд):
-- apexcharts (графики)
-- tinymce (WYSIWYG-редактор)
-- swiper (слайдер)
-- tus-js-client (загрузка файлов по протоколу tus)
-- simplebar (кастомный скроллбар)
+Дополнительные библиотеки Laravel включают Scout, AdminLTE, Spatie Permission, ClickHouse Laravel client, S3-адаптер Flysystem и Log Viewer. Подключение ClickHouse или S3 требует соответствующей внешней инфраструктуры и настроек окружения.
 
 ## Требования
-Проект можно запускать нативно или через Docker.
 
-Нативно (без Docker):
-- PHP 8.4 со следующими расширениями: curl, dom, exif, iconv, libxml, openssl, simplexml, zend-opcache
-- Composer 2
-- Node.js 20+ (Vite требует современный Node; Docker‑образ использует Node 22)
-- MySQL 8.4, Redis, ClickHouse, Manticore (локально опционально; в Docker‑настройке требуется)
+Для Docker-запуска нужны Docker и Docker Compose v2. Для запуска без Docker установите PHP 8.4 с расширениями из `composer.json`, Composer 2, Node.js 22+, MySQL 8.4 и Redis 7.
 
-Docker:
-- Docker Desktop 4+
-- Docker Compose v2 (docker compose)
+## Быстрый старт в Docker
 
-## Быстрый старт (Docker)
-Репозиторий содержит docker-compose.yml и шорткаты Makefile.
+```sh
+cp .env.example .env
+```
 
-1) Скопируйте .env и скорректируйте значения:
-- cp .env.example .env
-- Обновите APP_URL (по умолчанию http://project-x.loc) и при необходимости креды DB/Redis
+При необходимости измените `.env`: Makefile читает его, а Docker Compose использует значения для конфигурации сервисов. Далее запустите проект:
 
-2) Запустите стек:
-- make up-local
+```sh
+make up-local
+make php-local
+```
 
-3) Установите PHP‑зависимости (в шелле контейнера php):
-- make php-local
-- composer install
-- php artisan key:generate (если еще не задан)
-- php artisan migrate
+В PHP-контейнере:
 
-4) Установите и соберите фронтенд‑ассеты:
-- make install-local
-- make dev-local (для горячей перезагрузки) или make build-local (продакшн‑сборка)
+```sh
+composer install
+php artisan key:generate
+php artisan migrate
+```
 
-5) Откройте приложение:
-- http://localhost (nginx -> public/)
-- Vite dev‑сервер доступен на http://localhost:3000 (HMR‑хост настроен как project-x.loc в vite.config.js; при необходимости поправьте hosts или конфиг Vite)
+В отдельном терминале установите JS-зависимости и запустите Vite:
 
-Остановка:
-- make down-local
+```sh
+make install-local
+make dev-local
+```
 
-Для stage‑варианта используется docker-compose-stage.yml с аналогичными целями Makefile (up-stage, down-stage и т. д.).
+Приложение доступно через Nginx на `http://localhost`. Compose публикует порт `3000` для node-контейнера; Vite по умолчанию использует `5173`, поэтому для HMR в Docker согласуйте порт и host в настройках Vite и Compose. Чтобы собрать ассеты для production, выполните `make build-local`. Остановить локальные контейнеры можно командой `make down-local`.
 
-## Локальный запуск без Docker (опционально)
-- Скопируйте env: cp .env.example .env и укажите хосты DB/Redis как localhost
-- Установка PHP‑зависимостей: composer install
-- Генерация ключа: php artisan key:generate
-- Миграции: php artisan migrate
-- Установка Node‑зависимостей: npm install
-- Запуск дев‑серверов:
-  - php artisan serve (обслуживает public/ на http://127.0.0.1:8000)
-  - npm run dev (Vite на http://127.0.0.1:3000)
+В `.env.example` задан `APP_URL=http://project-x.loc`. Если браузер или HMR используют это имя, добавьте `127.0.0.1 project-x.loc` в hosts либо настройте `APP_URL` под своё окружение.
 
-Примечание: Некоторые фичи требуют ClickHouse и Manticore. Если вы не запускаете их локально, отключите зависящие фичи или задайте соответствующие переменные окружения. TODO: Задокументировать фича‑флаги для работы без этих сервисов, если поддерживается.
+## Запуск без Docker
 
-## Скрипты и инструменты
-Composer (серверная часть):
-- composer install / update
-- php artisan migrate
-- php artisan queue:work (использует Redis)
-- php artisan horizon (мониторинг очередей через Laravel Horizon)
-- php artisan tinker
+```sh
+cp .env.example .env
+composer install
+php artisan key:generate
+php artisan migrate
+npm install
+```
 
-NPM (фронтенд):
-- npm run dev — запуск Vite dev‑сервера
-- npm run build — продакшн‑сборка
+Убедитесь, что MySQL и Redis запущены и их адреса/учётные данные указаны в `.env`. Затем в разных терминалах запустите сервер Laravel и Vite:
 
-Makefile (шорткаты для Docker):
-- up-local / down-local — старт/остановка локального стека
-- php-local — shell в контейнер php (bash)
-- install-local — npm install внутри контейнера node
-- dev-local / build-local — запуск Vite внутри контейнера node
-- up-stage / down-stage / php-stage / install-stage / dev-stage / build-stage — эквиваленты для stage
+```sh
+php artisan serve
+npm run dev
+```
 
-## Переменные окружения
-См. .env.example для полного списка. Ключевые переменные:
-- Приложение: APP_NAME, APP_ENV, APP_DEBUG, APP_URL, APP_TIMEZONE, APP_LOCALE
-- Сессии/Кэш/Очереди: SESSION_DRIVER (database), CACHE_STORE (redis), QUEUE_CONNECTION (redis)
-- База данных (MySQL): DB_HOST, DB_PORT (3306), DB_DATABASE, DB_USERNAME, DB_PASSWORD, DB_ROOT_PASSWORD
-- Redis: REDIS_HOST, REDIS_PORT (6379), REDIS_PASSWORD, REDIS_CLIENT (predis)
-- Почта: MAIL_MAILER (по умолчанию log), MAIL_HOST, MAIL_PORT, MAIL_FROM_ADDRESS, MAIL_FROM_NAME
-- Vite: VITE_APP_NAME
-- ClickHouse: CLICKHOUSE_HOST (например, clickhouse:8123), CLICKHOUSE_USER, CLICKHOUSE_PASSWORD, CLICKHOUSE_DB, CLICKHOUSE_HTTP_PORT, CLICKHOUSE_TCP_PORT
-- Manticore (поиск Scout): MANTICORE_ENGINE (mysql-builder), MANTICORE_MYSQL_HOST, MANTICORE_MYSQL_PORT (9306)
-- Отображение пользователя в Docker: UID, GID, PROJECT_USER
-- Сторонние API: SENDSAY_URL, SENDSAY_API_KEY, KINESCOPE_API_TOKEN, ISPMANAGER_USERNAME, ISPMANAGER_PASSWORD, ISPMANAGER_DOMAIN
+Laravel будет доступен на `http://127.0.0.1:8000`, Vite dev-сервер использует порт `5173` по умолчанию (если он не занят). Production-сборка: `npm run build`.
 
-TODO:
-- Описать, какие фичи используют SENDSAY, KINESCOPE и ISPManager, и какие нужны шаги настройки.
+## Команды
 
-## Точки входа и структура
-- HTTP‑вход: public/index.php (обслуживается nginx или php -S через artisan serve)
-- Роуты: routes/web.php подключает роуты из routes/includes/{auth,admin,user,guest}.php
-- Контроллеры: app/Http/Controllers (пространства имен Admin, User, Guest)
-- Представления: resources/views (Blade)
-- Ассеты: resources/js и resources/css (группированы по guest/admin/user), собираются Vite (vite.config.js автодетектит)
-- Консоль: artisan; кастомные команды в app/Console/Commands
-- База данных: миграции, фабрики, сиды в database/
+### Makefile
 
-Пример дерева (частично):
-- app/
-  - Console/Commands/UpdateFinanceStatisticCommand.php
-  - Http/Controllers/{Admin,User,Guest}/...
-  - Services/NoteService.php
-- resources/
-  - js/{guest,admin,user}/*.js
-  - css/{guest,admin,user}/*.scss
-  - views/{guest,admin}/...
-- routes/web.php (+ includes)
-- public/
-- docker/ (nginx, php-fpm, supervisor, mysql init)
+Локальные команды: `up-local`, `down-local`, `php-local`, `install-local`, `dev-local`, `build-local`.
 
-## Заметки по разработке
-- В vite.config.js HMR‑хост задан как project-x.loc. Для локальной разработки можно:
-  - Добавить 127.0.0.1 project-x.loc в hosts,
-  - Обновить vite.config.js -> server.hmr.host на localhost, или
-  - Соответственно настроить APP_URL и прокси.
-- Очереди: предоставлен контейнер supervisor для запуска воркеров в Docker. Мониторинг очередей доступен через Laravel Horizon (php artisan horizon).
-- Кэширование/Сессии: по умолчанию настроены на Redis в .env.example.
+Для stage-окружения предусмотрены `up-stage`, `down-stage`, `php-stage`, `deploy-stage`, `reload-env-stage`; для production — `up-prod`, `down-prod`, `php-prod`, `deploy-prod`, `reload-env-prod`, `logs-prod`, `status-prod`. Эти команды проверяют `APP_ENV` из `.env`. Stage и production используют отдельные Compose-файлы `docker-compose-stage.yml` и `docker-compose-prod.yml` и требуют подготовленной инфраструктуры и доступов.
+
+### Composer и npm
+
+```sh
+php artisan migrate
+php artisan queue:work
+php artisan horizon
+php artisan test
+npm run dev
+npm run build
+```
+
+## Конфигурация
+
+Полный список переменных находится в `.env.example`. Основные настройки:
+
+- `APP_*` — приложение, URL, локаль и часовой пояс
+- `DB_*` — подключение MySQL
+- `REDIS_*`, `CACHE_STORE`, `QUEUE_CONNECTION` — Redis, кэш и очереди
+- `SESSION_*` — сессии
+- `MAIL_*` — почта (по умолчанию используется `log`)
+- `FILESYSTEM_DISK` — файловое хранилище (в примере настроен `s3`)
+- `VITE_APP_NAME` — имя приложения для фронтенда
+- `YOUTUBE_API_KEY` — ключ YouTube API
+
+Не храните секреты в репозитории. Для S3 заполните параметры диска в окружении/конфигурации Laravel и укажите действующий bucket и endpoint.
+
+## Структура
+
+- `app/` — код приложения
+- `routes/web.php`, `routes/console.php` — маршруты
+- `resources/js/`, `resources/sass/`, `resources/views/` — фронтенд и Blade-шаблоны
+- `database/` — миграции, фабрики и сиды
+- `docker/`, `docker-compose*.yml` — контейнеры и их конфигурация
+- `.gitlab-ci.yml` — CI/CD для тестирования, сборки и развертывания
 
 ## Тесты
-- Запуск: php artisan test
-- Или: ./vendor/bin/phpunit
-- Конфигурация PHPUnit: phpunit.xml определяет наборы Unit и Feature; APP_ENV=testing, DB_CONNECTION=mysql с базой данных "testing" по умолчанию. Убедитесь, что тестовая БД существует, или настройте env для тестов.
 
-## Деплой
-- Используйте цели build-stage/dev-stage с docker-compose-stage.yml в качестве отправной точки.
-- Убедитесь, что APP_KEY задан, а каталоги storage/ и bootstrap/cache доступны для записи.
-- Сборка ассетов: npm run build (или make build-stage) и настройка nginx на раздачу из public/.
-- TODO: Добавить детали CI/CD и шаги по подготовке серверов.
+Запускайте тесты командой `php artisan test` или `./vendor/bin/phpunit`. Параметры PHPUnit заданы в `phpunit.xml`; для тестового запуска проверьте доступность и настройки указанной там базы данных.
 
 ## Лицензия
-Проект распространяется по лицензии MIT (см. composer.json). TODO: Добавить файл LICENSE в репозиторий.
+
+В `composer.json` указана лицензия MIT.

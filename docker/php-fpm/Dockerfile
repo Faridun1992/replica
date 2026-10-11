@@ -1,4 +1,4 @@
-FROM php:8.4.20-fpm
+FROM php:8.5.11-fpm
 
 ARG user
 ARG uid
@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
+    libicu-dev \
     libwebp-dev \
     unzip \
     curl \
@@ -18,13 +19,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gifsicle \
     libavif-bin \
     libfcgi-bin \
-    libmagickwand-dev \
-    && pecl install imagick-3.8.1 \
-    && docker-php-ext-enable imagick \
     && docker-php-ext-install \
         pdo_mysql \
-        opcache \
         pcntl \
+        intl \
     && docker-php-ext-configure exif \
     && docker-php-ext-install exif \
     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
